@@ -20,6 +20,8 @@ mkdir -p "${DIST_DIR}"
 cmake -S "${PROJECT_ROOT}" -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE=Release
 cmake --build "${BUILD_DIR}" -j"$(nproc)"
 
+ldd "${BUILD_DIR}/cli/bettercpu" | grep -E "GLIBC|GLIBCXX" || true
+
 cp "${BUILD_DIR}/cli/bettercpu" "${DIST_DIR}/bettercpu"
 chmod 755 "${DIST_DIR}/bettercpu"
 rm -rf "${BUILD_DIR}"

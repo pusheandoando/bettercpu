@@ -9,6 +9,7 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    container: ubuntu:20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,7 +37,9 @@ jobs:
           fi
       - name: Install build dependencies
         if: steps.check_tag.outputs.exists == 'false'
-        run: sudo apt-get install -y dpkg-dev
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends build-essential cmake dpkg-dev git ca-certificates
       - name: Build Linux binary
         if: steps.check_tag.outputs.exists == 'false'
         run: |

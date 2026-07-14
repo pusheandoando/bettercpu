@@ -28,6 +28,8 @@ mkdir -p "${DIST_DIR}"
 cmake -S "${PROJECT_ROOT}" -B "${BUILD_DIR}" -DCMAKE_BUILD_TYPE=Release
 cmake --build "${BUILD_DIR}" -j"$(nproc)"
 
+ldd "${BUILD_DIR}/cli/bettercpu" | grep -E "GLIBC|GLIBCXX" || true
+
 mkdir -p "${STAGING_DIR}/usr/bin"
 mkdir -p "${STAGING_DIR}/DEBIAN"
 cp "${BUILD_DIR}/cli/bettercpu" "${STAGING_DIR}/usr/bin/bettercpu"
