@@ -37,6 +37,9 @@ jobs:
           fi
       - name: Install build dependencies
         if: steps.check_tag.outputs.exists == 'false'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: UTC
         run: |
           apt-get update
           apt-get install -y --no-install-recommends build-essential cmake dpkg-dev git ca-certificates
