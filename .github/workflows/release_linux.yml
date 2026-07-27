@@ -40,8 +40,8 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
           TZ: UTC
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends build-essential cmake dpkg-dev git ca-certificates
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake dpkg-dev git ca-certificates
       - name: Build Linux binary
         if: steps.check_tag.outputs.exists == 'false'
         run: |
