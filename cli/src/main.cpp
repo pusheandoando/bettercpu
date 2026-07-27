@@ -1,4 +1,5 @@
 // cli/src/main.cpp
+#include "bettercpu/colors.hpp"
 #include "bettercpu/daemon_control.hpp"
 #include "bettercpu/governor.hpp"
 #include "bettercpu/iostorage.hpp"
@@ -42,30 +43,30 @@ void handle_termination_signal(int) {
 }
 
 void print_help() {
-    std::cout << "bettercpu " << kVersion << " - Linux CPU Optimizer\n";
-    std::cout << "Written by Christian (@pusheandoando)\n";
+    std::cout << CLR_BOLD CLR_LGREEN "bettercpu " << kVersion << CLR_RESET " - Linux CPU Optimizer\n";
+    std::cout << CLR_WHITE "Written by Christian (@pusheandoando)\n" CLR_RESET;
     std::cout << "\n";
-    std::cout << "Usage:\n";
-    std::cout << "  bettercpu -h, --help        Show this help message\n";
-    std::cout << "  bettercpu -v, --version     Show the installed version\n";
-    std::cout << "  sudo bettercpu start        Start the adaptive tuning daemon\n";
-    std::cout << "  sudo bettercpu stop         Stop the daemon and restore original settings\n";
-    std::cout << "  bettercpu status            Show whether the daemon is currently active\n";
-    std::cout << "  sudo bettercpu clean        Remove all bettercpu generated files\n";
-    std::cout << "  sudo bettercpu p            List running programs and processes by CPU usage\n";
-    std::cout << "  sudo bettercpu p -k <id>    Kill a program or process using its temporary id\n";
-    std::cout << "  bettercpu p -h              Show help for the 'p' command\n";
+    std::cout << CLR_BOLD "Usage:\n" CLR_RESET;
+    std::cout << "  " CLR_CYAN "bettercpu -h, --help" CLR_RESET "        Show this help message\n";
+    std::cout << "  " CLR_CYAN "bettercpu -v, --version" CLR_RESET "     Show the installed version\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu start" CLR_RESET "        Start the adaptive tuning daemon\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu stop" CLR_RESET "         Stop the daemon and restore original settings\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu status" CLR_RESET "       Show whether the daemon is currently active\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu clean" CLR_RESET "        Remove all bettercpu generated files\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu p" CLR_RESET "            List running programs and processes by CPU usage\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu p -k <id>" CLR_RESET "    Kill a program or process using its temporary id\n";
+    std::cout << "  " CLR_CYAN "bettercpu p -h" CLR_RESET "              Show help for the 'p' command\n";
     std::cout << "\n";
-    std::cout << "Repository: https://github.com/pusheandoando/bettercpu\n";
+    std::cout << CLR_WHITE "Official repo: https://github.com/pusheandoando/bettercpu\n" CLR_RESET;
 }
 
 void print_version() {
-    std::cout << "bettercpu " << kVersion << "\n";
+    std::cout << CLR_LWHITE "bettercpu " CLR_LGREEN << kVersion << CLR_RESET "\n";
 }
 
 bool require_root() {
     if (geteuid() != 0) {
-        std::cerr << "bettercpu: this command requires root privileges, run it with sudo\n";
+        std::cerr << CLR_LRED "[!!] root privileges required\n" CLR_RESET;
         
         return false;
     }
@@ -109,7 +110,7 @@ bettercpu::SystemStateBackup capture_current_state(const bettercpu::Governor& go
     return state;
 }
 
-int run_start_command(bool skip_confirmation) {
+int run_start_command(bool skip_confirmation, bool run_in_foreground) {
     if (!require_root()) {
         return 1;
     }
@@ -117,20 +118,20 @@ int run_start_command(bool skip_confirmation) {
     bettercpu::DaemonControl daemon_control(kPidFilePath);
     
     if (daemon_control.is_running()) {
-        std::cerr << "bettercpu: the daemon is already running\n";
+        std::cerr << CLR_LRED "[!!] bettercpu is already running\n" CLR_RESET;
         return 1;
     }
     
     if (!skip_confirmation) {
-        std::cout << "bettercpu is about to configure and start adaptive tuning for your CPU, thermal, I/O, and memory subsystems.\n";
-        std::cout << "Changes are applied directly to the running system and take effect immediately, no restart is required.\n";
-        std::cout << "Proceed with starting bettercpu? [y/n]: ";
+        std::cout << CLR_CYAN "bettercpu will start adaptive tuning for CPU, thermal, I/O, and memory.\n" CLR_RESET;
+        std::cout << CLR_CYAN "Changes apply immediately, no restart required.\n" CLR_RESET;
+        std::cout << CLR_WHITE "Continue? [y/n]: " CLR_RESET;
 
         std::string user_response;
         std::getline(std::cin, user_response);
 
         if (user_response != "y" && user_response != "Y") {
-            std::cout << "bettercpu: startup cancelled\n";
+            std::cout << CLR_YELLOW "[!!] cancelled\n" CLR_RESET;
             return 0;
         }
     }
@@ -139,7 +140,7 @@ int run_start_command(bool skip_confirmation) {
     bettercpu::SystemdPersistence persistence(kSystemdUnitFilePath);
 
     if (!persistence.install_and_enable(executable_path(), kPidFilePath)) {
-        std::cerr << "bettercpu: failed to install the systemd service for boot persistence\n";
+        std::cerr << CLR_LRED "[!!] could not install the systemd service for boot persistence\n" CLR_RESET;
         return 1;
     }
     
@@ -152,19 +153,27 @@ int run_start_command(bool skip_confirmation) {
     bettercpu::StateBackup state_backup(kBackupFilePath);
     
     if (!state_backup.save(backup_state)) {
-        std::cerr << "bettercpu: failed to save the original system state, aborting\n";
+        std::cerr << CLR_LRED "[!!] could not save original system state, aborting\n" CLR_RESET;
         return 1;
     }
     
-    std::cout << "bettercpu: daemon started, applying adaptive tuning now\n";
+    std::cout << CLR_LGREEN "[OK] daemon started, applying adaptive tuning\n" CLR_RESET;
     std::cout.flush();
 
-    if (!daemon_control.daemonize()) {
-        std::cerr << "bettercpu: failed to start the daemon in the background\n";
-        return 1;
+    if (run_in_foreground) {
+        if (!daemon_control.write_pid_file()) {
+            std::cerr << CLR_LRED "[!!] could not write the pid file\n" CLR_RESET;
+            return 1;
+        }
+    } else {
+        if (!daemon_control.daemonize()) {
+            std::cerr << CLR_LRED "[!!] could not start the daemon in the background\n" CLR_RESET;
+            return 1;
+        }
+
+        daemon_control.write_pid_file();
     }
 
-    daemon_control.write_pid_file();
     bettercpu::PolicyEngine policy_engine;
     g_policy_engine = &policy_engine;
 
@@ -206,32 +215,36 @@ int run_stop_command() {
     bettercpu::DaemonControl daemon_control(kPidFilePath);
     
     if (!daemon_control.is_running()) {
-        std::cerr << "bettercpu: the daemon is not running\n";
+        std::cerr << CLR_LRED "[!!] bettercpu is not running\n" CLR_RESET;
         return 1;
     }
     
     if (!daemon_control.send_stop_signal()) {
-        std::cerr << "bettercpu: failed to signal the running daemon\n";
+        std::cerr << CLR_LRED "[!!] could not signal the running daemon\n" CLR_RESET;
         return 1;
     }
     
     bettercpu::SystemdPersistence persistence(kSystemdUnitFilePath);
     persistence.disable();
     
-    std::cout << "bettercpu: stop signal sent, original settings will be restored\n";
+    std::cout << CLR_LYELLOW "[OK] stop signal sent, original settings will be restored\n" CLR_RESET;
     
     return 0;
 }
 
 int run_status_command() {
+    if (!require_root()) {
+        return 1;
+    }
+
     bettercpu::DaemonControl daemon_control(kPidFilePath);
 
     if (daemon_control.is_running()) {
-        std::cout << "bettercpu: active (running, pid " << daemon_control.read_pid() << ")\n";
+        std::cout << CLR_LGREEN "[OK] active (pid " << daemon_control.read_pid() << ")\n" CLR_RESET;
         return 0;
     }
 
-    std::cout << "bettercpu: inactive (not running)\n";
+    std::cout << CLR_LRED "[!!] inactive\n" CLR_RESET;
 
     return 1;
 }
@@ -244,24 +257,24 @@ int run_clean_command() {
     bettercpu::DaemonControl daemon_control(kPidFilePath);
     
     if (daemon_control.is_running()) {
-        std::cerr << "bettercpu: the daemon is still running, run 'sudo bettercpu stop' first\n";
+        std::cerr << CLR_LRED "[!!] bettercpu is still restoring or running, run 'sudo bettercpu stop' and wait until it is inactive\n" CLR_RESET;
         return 1;
     }
 
     std::error_code error_code;
     std::filesystem::remove_all(kStateDirectory, error_code);
     if (error_code) {
-        std::cerr << "bettercpu: failed to remove state directory: " << error_code.message() << "\n";
+        std::cerr << CLR_LRED "[!!] could not remove state directory: " << error_code.message() << "\n" CLR_RESET;
         return 1;
     }
 
     bettercpu::SystemdPersistence persistence(kSystemdUnitFilePath);
     if (!persistence.remove()) {
-        std::cerr << "bettercpu: failed to remove the systemd service\n";
+        std::cerr << CLR_LRED "[!!] could not remove the systemd service\n" CLR_RESET;
         return 1;
     }
 
-    std::cout << "bettercpu: all generated files have been removed\n";
+    std::cout << CLR_LGREEN "[OK] all generated files removed\n" CLR_RESET;
     
     return 0;
 }
@@ -274,7 +287,6 @@ std::string format_percent(double value) {
 }
 
 constexpr const char* kBoxHorizontal = "\u2500";
-constexpr const char* kBoxVertical = "\u2502";
 constexpr const char* kBoxTopLeft = "\u250C";
 constexpr const char* kBoxTopMid = "\u252C";
 constexpr const char* kBoxTopRight = "\u2510";
@@ -284,6 +296,7 @@ constexpr const char* kBoxMidRight = "\u2524";
 constexpr const char* kBoxBottomLeft = "\u2514";
 constexpr const char* kBoxBottomMid = "\u2534";
 constexpr const char* kBoxBottomRight = "\u2518";
+constexpr const char* kBoxVertical = "\u2502";
 
 struct ProcessListingRange {
     size_t start;
@@ -345,20 +358,20 @@ void print_program_process_table(const bettercpu::ProgramGroup& program) {
         + kBoxBottomMid + repeat_utf8(kBoxHorizontal, process_width + 2)
         + kBoxBottomMid + repeat_utf8(kBoxHorizontal, cpu_width + 2) + kBoxBottomRight;
 
-    std::cout << top_border << "\n";
-    std::cout << indent << kBoxVertical << " " << pad_right(pid_header, pid_width) << " " << kBoxVertical
-        << " " << pad_right(process_header, process_width) << " " << kBoxVertical
-        << " " << pad_right(cpu_header, cpu_width) << " " << kBoxVertical << "\n";
-    std::cout << mid_border << "\n";
+    std::cout << CLR_CYAN << top_border << CLR_RESET "\n";
+    std::cout << CLR_CYAN << indent << kBoxVertical << CLR_RESET " " << pad_right(pid_header, pid_width) << " " CLR_CYAN << kBoxVertical << CLR_RESET
+        << " " << pad_right(process_header, process_width) << " " CLR_CYAN << kBoxVertical << CLR_RESET
+        << " " << pad_right(cpu_header, cpu_width) << " " CLR_CYAN << kBoxVertical << CLR_RESET "\n";
+    std::cout << CLR_CYAN << mid_border << CLR_RESET "\n";
 
     for (size_t process_index = 0; process_index < program.processes.size(); process_index++) {
         const bettercpu::ProcessSample& process = program.processes[process_index];
-        std::cout << indent << kBoxVertical << " " << pad_right(pid_labels[process_index], pid_width) << " " << kBoxVertical
-            << " " << pad_right(process.name, process_width) << " " << kBoxVertical
-            << " " << pad_right(cpu_labels[process_index], cpu_width) << " " << kBoxVertical << "\n";
+        std::cout << CLR_CYAN << indent << kBoxVertical << CLR_RESET " " << pad_right(pid_labels[process_index], pid_width) << " " CLR_CYAN << kBoxVertical << CLR_RESET
+            << " " << pad_right(process.name, process_width) << " " CLR_CYAN << kBoxVertical << CLR_RESET
+            << " " << pad_right(cpu_labels[process_index], cpu_width) << " " CLR_CYAN << kBoxVertical << CLR_RESET "\n";
     }
 
-    std::cout << bottom_border << "\n";
+    std::cout << CLR_CYAN << bottom_border << CLR_RESET "\n";
 }
 
 void print_process_listing(const ProcessListingRange* range) {
@@ -406,8 +419,8 @@ void print_process_listing(const ProcessListingRange* range) {
 
     std::string header_line = pad_right(id_header, id_width) + "  " + pad_right(program_header, program_width) + "  " + cpu_header;
 
-    std::cout << header_line << "\n";
-    std::cout << std::string(header_line.size(), '-') << "\n";
+    std::cout << CLR_BOLD CLR_LWHITE << header_line << CLR_RESET "\n";
+    std::cout << CLR_WHITE << std::string(header_line.size(), '-') << CLR_RESET "\n";
 
     size_t label_index = 0;
 
@@ -417,9 +430,9 @@ void print_process_listing(const ProcessListingRange* range) {
         }
 
         const bettercpu::ProgramGroup& program = programs[program_index];
-        std::cout << pad_right(id_labels[label_index], id_width) << "  "
+        std::cout << CLR_LGREEN << pad_right(id_labels[label_index], id_width) << CLR_RESET "  "
             << pad_right(program_labels[label_index], program_width) << "  "
-            << cpu_labels[label_index] << "\n";
+            << CLR_LCYAN << cpu_labels[label_index] << CLR_RESET "\n";
         print_program_process_table(program);
         std::cout << "\n";
         label_index++;
@@ -517,49 +530,49 @@ int run_process_kill_command(const std::string& id_token) {
 
     if (parse_process_id(id_token, program_id, process_id)) {
         if (program_id >= programs.size() || process_id >= programs[program_id].processes.size()) {
-            std::cerr << "bettercpu: no process found with id '" << id_token << "'\n";
+            std::cerr << CLR_LRED "[!!] no process found with id '" << id_token << "'\n" CLR_RESET;
             return 1;
         }
 
         pid_t target_pid = programs[program_id].processes[process_id].pid;
 
         if (!process_manager.kill_process(target_pid)) {
-            std::cerr << "bettercpu: failed to terminate the requested process\n";
+            std::cerr << CLR_LRED "[!!] could not terminate the requested process\n" CLR_RESET;
             return 1;
         }
 
-        std::cout << "bettercpu: process terminated\n";
+        std::cout << CLR_LGREEN "[OK] process terminated\n" CLR_RESET;
         return 0;
     }
 
     if (parse_program_id(id_token, program_id)) {
         if (program_id >= programs.size()) {
-            std::cerr << "bettercpu: no program found with id '" << id_token << "'\n";
+            std::cerr << CLR_LRED "[!!] no program found with id '" << id_token << "'\n" CLR_RESET;
             return 1;
         }
 
         if (!process_manager.kill_program(programs[program_id])) {
-            std::cerr << "bettercpu: failed to terminate the requested program\n";
+            std::cerr << CLR_LRED "[!!] could not terminate the requested program\n" CLR_RESET;
             return 1;
         }
 
-        std::cout << "bettercpu: program terminated\n";
+        std::cout << CLR_LGREEN "[OK] program terminated\n" CLR_RESET;
         return 0;
     }
 
-    std::cerr << "bettercpu: invalid id '" << id_token << "', expected format N or NpM\n";
+    std::cerr << CLR_LRED "[!!] invalid id '" << id_token << "', expected format N or NpM\n" CLR_RESET;
     return 1;
 }
 
 void print_process_help() {
-    std::cout << "bettercpu p - list and manage running programs and processes\n";
+    std::cout << "\n" CLR_BOLD CLR_LWHITE "bettercpu p" CLR_RESET " - List and manage running programs and processes\n";
+    std::cout << "\n" CLR_BOLD "Usage:\n" CLR_RESET;
+    std::cout << "  " CLR_CYAN "sudo bettercpu p" CLR_RESET "                    List all running programs and processes by CPU usage\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu p -l, --list" CLR_RESET "         List all running programs and processes by CPU usage\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu p -k, --kill <id>" CLR_RESET "    Kill a program or process using its temporary id\n";
+    std::cout << "  " CLR_CYAN "sudo bettercpu p -r, --range <a:b>" CLR_RESET "  Limit the listing to programs with id from a to b\n";
+    std::cout << "  " CLR_CYAN "bettercpu p -h, --help" CLR_RESET "              Show this help message\n";
     std::cout << "\n";
-    std::cout << "Usage:\n";
-    std::cout << "  sudo bettercpu p                    List all running programs and processes by CPU usage\n";
-    std::cout << "  sudo bettercpu p -l, --list         List all running programs and processes by CPU usage\n";
-    std::cout << "  sudo bettercpu p -k, --kill <id>    Kill a program or process using its temporary id\n";
-    std::cout << "  sudo bettercpu p -r, --range <a:b>  Limit the listing to programs with id from a to b\n";
-    std::cout << "  bettercpu p -h, --help              Show this help message\n";
 }
 
 int run_process_command(int argc, char* argv[]) {
@@ -583,7 +596,7 @@ int run_process_command(int argc, char* argv[]) {
 
         if (option == "-k" || option == "--kill") {
             if (argument_index + 1 >= argc) {
-                std::cerr << "bettercpu: missing id argument for " << option << "\n";
+                std::cerr << CLR_LRED "[!!] missing id argument for " << option << "\n" CLR_RESET;
                 return 1;
             }
 
@@ -594,7 +607,7 @@ int run_process_command(int argc, char* argv[]) {
 
         if (option == "-r" || option == "--range") {
             if (argument_index + 1 >= argc) {
-                std::cerr << "bettercpu: missing range argument for " << option << "\n";
+                std::cerr << CLR_LRED "[!!] missing range argument for " << option << "\n" CLR_RESET;
                 return 1;
             }
 
@@ -603,7 +616,7 @@ int run_process_command(int argc, char* argv[]) {
             continue;
         }
 
-        std::cerr << "bettercpu: unknown option '" << option << "' for command 'p'\n";
+        std::cerr << CLR_LRED "[!!] unknown option '" << option << "' for command 'p'\n" CLR_RESET;
         return 1;
     }
 
@@ -620,7 +633,7 @@ int run_process_command(int argc, char* argv[]) {
 
     if (range_requested) {
         if (!parse_listing_range(range_token, range)) {
-            std::cerr << "bettercpu: invalid range '" << range_token << "', expected format START:END\n";
+            std::cerr << CLR_LRED "[!!] invalid range '" << range_token << "', expected format START:END\n" CLR_RESET;
             return 1;
         }
     }
@@ -639,10 +652,10 @@ int main(int argc, char* argv[]) {
 
     int command_argc = argc;
     char** command_argv = argv;
-    bool skip_confirmation = false;
+    bool launched_by_systemd = false;
 
     if (argc >= 2 && std::string(argv[1]) == "--boot") {
-        skip_confirmation = true;
+        launched_by_systemd = true;
         command_argc = argc - 1;
         command_argv = argv + 1;
     }
@@ -663,7 +676,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
     if (command == "start") {
-        return run_start_command(skip_confirmation);
+        return run_start_command(launched_by_systemd, launched_by_systemd);
     }
     if (command == "stop") {
         return run_stop_command();
@@ -677,7 +690,7 @@ int main(int argc, char* argv[]) {
     if (command == "p") {
         return run_process_command(command_argc, command_argv);
     }
-    std::cerr << "bettercpu: unknown command '" << command << "'\n";
+    std::cerr << CLR_LRED "[!!] unknown command '" << command << "'\n" CLR_RESET;
     print_help();
     
     return 1;

@@ -1,4 +1,4 @@
-# bettercpu (v1.0.0)
+# bettercpu (v1.0.1)
 Adaptive real-time tuning of CPU frequency scaling, thermal limits, I/O schedulers, and memory pressure on Linux systems. Written by Christian (@pusheandoando)
 
 
